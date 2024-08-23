@@ -1,4 +1,4 @@
-// controllers/schoolController.js
+// Import the database configuration
 const db = require('../config/db');
 
 // Validation function for school data
@@ -28,9 +28,14 @@ exports.addSchool = (req, res) => {
         return res.status(400).json({ message: validationError });
     }
 
-    const sql = 'INSERT INTO schools (name, address, latitude, longitude) VALUES (?, ?, ?, ?)';
-    db.query(sql, [name, address, latitude, longitude], (err, result) => {
+    // Insert the new school (the unique constraint on latitude and longitude will prevent duplicates)
+    const insertSql = 'INSERT INTO schools (name, address, latitude, longitude) VALUES (?, ?, ?, ?)';
+    db.query(insertSql, [name, address, latitude, longitude], (err, result) => {
         if (err) {
+            // Check if the error is a duplicate entry error
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({ message: 'A school with the same latitude and longitude already exists.' });
+            }
             console.error(err);
             return res.status(500).json({ message: 'Database error' });
         }
@@ -40,9 +45,9 @@ exports.addSchool = (req, res) => {
 
 // List Schools API Controller
 exports.listSchools = (req, res) => {
-    const { latitude, longitude } = req.query;
+    const { latitude, longitude } = req.body; // Extract latitude and longitude from the request body
 
-    // Validate latitude and longitude
+    // Validate latitude and longitude presence
     if (latitude == null || longitude == null) {
         return res.status(400).json({ message: 'Latitude and Longitude are required.' });
     }
@@ -50,7 +55,7 @@ exports.listSchools = (req, res) => {
     const userLat = parseFloat(latitude);
     const userLon = parseFloat(longitude);
 
-    // Validate that latitude and longitude are numbers
+    // Validate latitude and longitude are numbers
     if (isNaN(userLat) || isNaN(userLon)) {
         return res.status(400).json({ message: 'Latitude and Longitude must be valid numbers.' });
     }
@@ -62,14 +67,17 @@ exports.listSchools = (req, res) => {
             return res.status(500).json({ message: 'Database error' });
         }
 
+        // Calculate distance from the user for each school and round off
         results.forEach(school => {
             const schoolLat = school.latitude;
             const schoolLon = school.longitude;
-            school.distance = haversineDistance(userLat, userLon, schoolLat, schoolLon);
+            let distance = haversineDistance(userLat, userLon, schoolLat, schoolLon);
+            distance = Math.round(distance); // Round off to the nearest integer
+            school.distance = `${distance} km`; // Append 'km' to the distance
         });
 
-        // Sort schools by distance
-        results.sort((a, b) => a.distance - b.distance);
+        // Sort schools by distance from user location
+        results.sort((a, b) => parseInt(a.distance) - parseInt(b.distance));
 
         res.json(results);
     });
