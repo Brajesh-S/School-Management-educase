@@ -1,9 +1,9 @@
 // routes/schoolRoutes.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const schoolController = require('../controllers/schoolController');
+const schoolController = require("../controllers/schoolController");
 
-router.post('/addSchool', schoolController.addSchool);
-router.get('/listSchools', schoolController.listSchools);
+router.post("/addSchool", schoolController.addSchool);
+router.get("/listSchools", schoolController.listSchools);
 
 module.exports = router;
